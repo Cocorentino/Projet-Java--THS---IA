@@ -1,0 +1,13 @@
+{
+  "java.project.sourcePaths": [
+    "."
+  ],
+  "java.project.outputPath": "bin",
+  "java.project.resourceFilters": [
+    "dataset_groupe_7",
+    "Documents",
+    "*.zip",
+    "*.pdf",
+    "*.m4a"
+  ]
+}

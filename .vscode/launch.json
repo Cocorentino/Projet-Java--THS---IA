@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Lancer le projet IA",
+      "request": "launch",
+      "mainClass": "Support.testNeurone",
+      "cwd": "${workspaceFolder}",
+      "classPaths": [
+        "${workspaceFolder}"
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Nettoyer et compiler le projet Java"
+    }
+  ]
+}

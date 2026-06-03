@@ -10,9 +10,17 @@ public abstract class Neurone implements iNeurone
 	// Coefficient de mise à jour des poids,
 	// commun (static) à tous les neurones
 	private static float eta = 0.005f;
+	// Nombre maximal d'epochs autorisees pendant l'apprentissage.
+	// Le garder configurable permet de comparer plusieurs reglages proprement.
+	private static int nbEpochsMax = 500;
+	// Active/desactive l'affichage des epochs. Utile pour eviter un terminal
+	// illisible pendant les benchmarks automatiques.
+	private static boolean traceApprentissage = true;
 	// Accesseur en écriture seule, permettant de modifier
 	// eta pour tous les neurones pendant l'exécution
 	public static void fixeCoefApprentissage(final float nouvelEta) {eta = nouvelEta;}
+	public static void fixeNbEpochsMax(final int nouveauNbEpochsMax) {nbEpochsMax = nouveauNbEpochsMax;}
+	public static void fixeTraceApprentissage(final boolean nouvelleTrace) {traceApprentissage = nouvelleTrace;}
 	
 	// Tolérance immuable (final) et générique (car commune à tous les neurones
 	// par le mot-clé static) permettant d'accepter la sortie d'un neurone comme valable
@@ -88,13 +96,14 @@ public abstract class Neurone implements iNeurone
 				fixeBiais(biais()+eta*delta);
 			}
 			mse /= entrees.length;
-			if (iter % 10 == 0)
+			if (traceApprentissage && iter % 10 == 0)
 				System.out.printf("Epoch %d -> MSE : %.6f%n", iter, mse);
 			iter += 1;
 		}
-		while (mse > MSElimite && iter < 500);
+		while (mse > MSElimite && iter < nbEpochsMax);
 
-		System.out.printf("Apprentissage termine a l'epoch %d avec MSE = %.6f%n", iter, mse);
+		if (traceApprentissage)
+			System.out.printf("Apprentissage termine a l'epoch %d avec MSE = %.6f%n", iter, mse);
 	}
 
 	public void sauvegarde(String chemin) // optionel

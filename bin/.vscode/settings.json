@@ -9,5 +9,7 @@
     "*.zip",
     "*.pdf",
     "*.m4a"
-  ]
+  ],
+  "editor.formatOnSave": false,
+  "editor.formatOnSaveMode": "modificationsIfAvailable"
 }

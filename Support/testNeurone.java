@@ -23,9 +23,12 @@ public class testNeurone {
 
 	// Les jeux d'images sont gardes en memoire pour eviter de relire le dataset
 	// si plusieurs tests sont lances dans la meme execution du programme.
-	private static DataPipeline pipelineImages = null;
-	private static JeuImages jeuChatChienTrain = null;
-	private static JeuImages jeuChatChienTest = null;
+	private static DataPipeline pipelineImagesGris = null;
+	private static DataPipeline pipelineImagesRGB = null;
+	private static JeuImages jeuChatChienTrainGris = null;
+	private static JeuImages jeuChatChienTestGris = null;
+	private static JeuImages jeuChatChienTrainRGB = null;
+	private static JeuImages jeuChatChienTestRGB = null;
 	private static ModeleIA modeleChatChien = null;
 
 	private static class ResultatEvaluation {
@@ -44,13 +47,22 @@ public class testNeurone {
 		String[] chemins;
 		int nbChats;
 		int nbChiens;
+		boolean niveauxDeGris;
 
-		JeuImages(float[][] entrees, float[] labels, String[] chemins, int nbChats, int nbChiens) {
+		JeuImages(
+			float[][] entrees,
+			float[] labels,
+			String[] chemins,
+			int nbChats,
+			int nbChiens,
+			boolean niveauxDeGris) {
+
 			this.entrees = entrees;
 			this.labels = labels;
 			this.chemins = chemins;
 			this.nbChats = nbChats;
 			this.nbChiens = nbChiens;
+			this.niveauxDeGris = niveauxDeGris;
 		}
 	}
 
@@ -63,6 +75,7 @@ public class testNeurone {
 		double precisionValidation;
 		double precisionTest;
 		int nbPixels;
+		boolean niveauxDeGris;
 
 		ModeleIA(
 			iNeurone neurone,
@@ -72,7 +85,8 @@ public class testNeurone {
 			float mseLimite,
 			double precisionValidation,
 			double precisionTest,
-			int nbPixels) {
+			int nbPixels,
+			boolean niveauxDeGris) {
 
 			this.neurone = neurone;
 			this.activation = activation;
@@ -82,6 +96,7 @@ public class testNeurone {
 			this.precisionValidation = precisionValidation;
 			this.precisionTest = precisionTest;
 			this.nbPixels = nbPixels;
+			this.niveauxDeGris = niveauxDeGris;
 		}
 	}
 
@@ -150,8 +165,9 @@ public class testNeurone {
 		}
 
 		return String.format(
-			"entrainee (%s, eta=%.5f, epochs=%d, test=%.2f%%)",
+			"entrainee (%s, %s, eta=%.5f, epochs=%d, test=%.2f%%)",
 			modeleChatChien.activation,
+			nomRepresentation(modeleChatChien.niveauxDeGris),
 			modeleChatChien.eta,
 			modeleChatChien.epochsMax,
 			modeleChatChien.precisionTest);
@@ -216,12 +232,13 @@ public class testNeurone {
 			System.out.println("------------------------------------------------------------");
 			System.out.println("Etat courant : " + etatModeleCourant());
 			System.out.println();
-			System.out.println("1 - Entrainement rapide avec parametres par defaut");
-			System.out.println("2 - Entrainement personnalise");
-			System.out.println("3 - Continuer l'entrainement du modele courant");
-			System.out.println("4 - Benchmark automatique et garder le meilleur modele");
-			System.out.println("5 - Sauvegarder le modele courant");
-			System.out.println("6 - Charger le modele sauvegarde");
+			System.out.println("1 - Entrainement rapide en niveaux de gris");
+			System.out.println("2 - Entrainement rapide en RGB");
+			System.out.println("3 - Entrainement personnalise");
+			System.out.println("4 - Continuer l'entrainement du modele courant");
+			System.out.println("5 - Benchmark automatique et garder le meilleur modele");
+			System.out.println("6 - Sauvegarder le modele courant");
+			System.out.println("7 - Charger le modele sauvegarde");
 			System.out.println("0 - Retour au menu principal");
 			System.out.print("Votre choix : ");
 
@@ -229,28 +246,41 @@ public class testNeurone {
 
 			switch (choix) {
 				case "1":
-					entrainerIAChatChien("Heaviside", ETA_IMAGES_DEFAUT, EPOCHS_IMAGES_DEFAUT, MSE_LIMITE_IMAGES_DEFAUT);
+					entrainerIAChatChien(
+						"Heaviside",
+						ETA_IMAGES_DEFAUT,
+						EPOCHS_IMAGES_DEFAUT,
+						MSE_LIMITE_IMAGES_DEFAUT,
+						true);
 					break;
 				case "2":
-					entrainerIAChatChienPersonnalise(clavier);
+					entrainerIAChatChien(
+						"Heaviside",
+						ETA_IMAGES_DEFAUT,
+						EPOCHS_IMAGES_DEFAUT,
+						MSE_LIMITE_IMAGES_DEFAUT,
+						false);
 					break;
 				case "3":
-					continuerEntrainementModeleCourant(clavier);
+					entrainerIAChatChienPersonnalise(clavier);
 					break;
 				case "4":
-					executerBenchmark(clavier);
+					continuerEntrainementModeleCourant(clavier);
 					break;
 				case "5":
-					sauvegarderModeleCourant();
+					executerBenchmark(clavier);
 					break;
 				case "6":
+					sauvegarderModeleCourant();
+					break;
+				case "7":
 					chargerModeleSauvegarde(true);
 					break;
 				case "0":
 					retour = true;
 					break;
 				default:
-					System.out.println("Choix invalide. Entrez un nombre entre 0 et 6.");
+					System.out.println("Choix invalide. Entrez un nombre entre 0 et 7.");
 					break;
 			}
 		}
@@ -297,10 +327,16 @@ public class testNeurone {
 					lancerTestAvecRepetition(clavier, () -> testerRobustesseChatChien());
 					break;
 				case "5":
-					lancerTestAvecRepetition(clavier, () -> testerImagesSansBruit());
+					lancerTestAvecRepetition(clavier, () -> {
+						boolean niveauxDeGris = demanderRepresentationImages(clavier, true);
+						testerImagesSansBruit(niveauxDeGris);
+					});
 					break;
 				case "6":
-					lancerTestAvecRepetition(clavier, () -> testerRobustesseAvecBruit());
+					lancerTestAvecRepetition(clavier, () -> {
+						boolean niveauxDeGris = demanderRepresentationImages(clavier, true);
+						testerRobustesseAvecBruit(niveauxDeGris);
+					});
 					break;
 				case "0":
 					retour = true;
@@ -323,6 +359,9 @@ public class testNeurone {
 		System.out.println();
 		System.out.println("2. Entrainement personnalise");
 		System.out.println("   Activation : Heaviside, Sigmoide ou ReLU.");
+		System.out.println("   Representation : niveaux de gris ou RGB.");
+		System.out.println("   RGB garde les canaux rouge, vert et bleu, donc 3 fois plus");
+		System.out.println("   d'entrees que le gris. C'est plus lent et pas forcement meilleur.");
 		System.out.println("   Eta : vitesse de correction des poids.");
 		System.out.println("   Epochs : nombre maximal de passages sur le train.");
 		System.out.println("   MSE limite : seuil d'erreur vise pendant l'apprentissage.");
@@ -454,6 +493,31 @@ public class testNeurone {
 		}
 	}
 
+	private static boolean demanderRepresentationImages(Scanner clavier, boolean defautNiveauxDeGris) {
+		String valeurDefaut = defautNiveauxDeGris ? "1" : "2";
+
+		while (true) {
+			System.out.println();
+			System.out.println("Representation des images :");
+			System.out.println("1 - Niveaux de gris : 1 valeur par pixel, apprentissage plus rapide");
+			System.out.println("2 - RGB             : 3 valeurs par pixel, conserve la couleur");
+			String choix = demanderTexteAvecDefaut(clavier, "Votre choix", valeurDefaut);
+
+			if (choix.equals("1") || choix.equalsIgnoreCase("gris") || choix.equalsIgnoreCase("gray")) {
+				return true;
+			}
+			if (choix.equals("2") || choix.equalsIgnoreCase("rgb") || choix.equalsIgnoreCase("couleur")) {
+				return false;
+			}
+
+			System.out.println("Representation inconnue. Entrez 1 pour gris ou 2 pour RGB.");
+		}
+	}
+
+	private static String nomRepresentation(boolean niveauxDeGris) {
+		return niveauxDeGris ? "niveaux de gris" : "RGB";
+	}
+
 	private static void testerFonctionLogique(String nomFonction, float[] resultatsAttendus, boolean afficherDetails) {
 		System.out.println();
 		System.out.println("=== TEST LOGIQUE : " + nomFonction + " ===");
@@ -533,21 +597,29 @@ public class testNeurone {
 
 	private static void entrainerIAChatChienPersonnalise(Scanner clavier) {
 		String activation = demanderActivation(clavier, "1");
+		boolean niveauxDeGris = demanderRepresentationImages(clavier, true);
 		float eta = demanderFloatAvecDefaut(clavier, "Coefficient d'apprentissage eta", 0.000001f, ETA_IMAGES_DEFAUT);
 		int epochsMax = demanderEntierAvecDefaut(clavier, "Nombre maximal d'epochs", 1, EPOCHS_IMAGES_DEFAUT);
 		float mseLimite = demanderFloatAvecDefaut(clavier, "MSE limite", 0.0f, MSE_LIMITE_IMAGES_DEFAUT);
 
-		entrainerIAChatChien(activation, eta, epochsMax, mseLimite);
+		entrainerIAChatChien(activation, eta, epochsMax, mseLimite, niveauxDeGris);
 	}
 
-	private static void entrainerIAChatChien(String activation, float eta, int epochsMax, float mseLimite) {
+	private static void entrainerIAChatChien(
+		String activation,
+		float eta,
+		int epochsMax,
+		float mseLimite,
+		boolean niveauxDeGris) {
+
 		System.out.println();
 		System.out.println("=== ENTRAINEMENT IA CHAT VS CHIEN ===");
 		System.out.println("Convention : chat = 0, chien = 1.");
 		System.out.println("Les images wild sont ignorees pour cet apprentissage binaire.");
+		System.out.println("Representation : " + nomRepresentation(niveauxDeGris) + ".");
 
-		JeuImages train = obtenirJeuChatChienTrain();
-		JeuImages test = obtenirJeuChatChienTest();
+		JeuImages train = obtenirJeuChatChienTrain(niveauxDeGris);
+		JeuImages test = obtenirJeuChatChienTest(niveauxDeGris);
 
 		if (train.entrees.length == 0 || test.entrees.length == 0) {
 			System.err.println("Erreur : donnees chat/chien introuvables.");
@@ -577,8 +649,8 @@ public class testNeurone {
 			return;
 		}
 
-		JeuImages train = obtenirJeuChatChienTrain();
-		JeuImages test = obtenirJeuChatChienTest();
+		JeuImages train = obtenirJeuChatChienTrain(modeleChatChien.niveauxDeGris);
+		JeuImages test = obtenirJeuChatChienTest(modeleChatChien.niveauxDeGris);
 		float eta = demanderFloatAvecDefaut(clavier, "Nouveau eta", 0.000001f, modeleChatChien.eta);
 		int epochsMax = demanderEntierAvecDefaut(clavier, "Epochs supplementaires max", 1, modeleChatChien.epochsMax);
 		float mseLimite = demanderFloatAvecDefaut(clavier, "MSE limite", 0.0f, modeleChatChien.mseLimite);
@@ -606,6 +678,7 @@ public class testNeurone {
 		System.out.println("sur une partie validation extraite du train.");
 		System.out.println();
 
+		boolean niveauxDeGris = demanderRepresentationImages(clavier, true);
 		String[] activations = demanderActivationsBenchmark(clavier);
 		float[] etas = demanderListeFloatAvecDefaut(clavier, "Liste des eta separes par des virgules", "0.001,0.005,0.01");
 		int repetitions = demanderEntierAvecDefaut(clavier, "Nombre de repetitions par configuration", 1, 1);
@@ -613,8 +686,8 @@ public class testNeurone {
 		float mseLimite = demanderFloatAvecDefaut(clavier, "MSE limite", 0.0f, MSE_LIMITE_IMAGES_DEFAUT);
 		int pourcentValidation = demanderEntierAvecDefaut(clavier, "Pourcentage du train utilise en validation", 1, 20);
 
-		JeuImages trainComplet = obtenirJeuChatChienTrain();
-		JeuImages testOfficiel = obtenirJeuChatChienTest();
+		JeuImages trainComplet = obtenirJeuChatChienTrain(niveauxDeGris);
+		JeuImages testOfficiel = obtenirJeuChatChienTest(niveauxDeGris);
 		int tailleValidation = Math.max(1, trainComplet.entrees.length * pourcentValidation / 100);
 		int split = trainComplet.entrees.length - tailleValidation;
 
@@ -628,6 +701,7 @@ public class testNeurone {
 		ModeleIA meilleur = null;
 
 		System.out.println();
+		System.out.println("Representation testee : " + nomRepresentation(niveauxDeGris));
 		System.out.println("Activation | eta     | rep | validation | test officiel");
 		System.out.println("--------------------------------------------------------");
 
@@ -747,14 +821,24 @@ public class testNeurone {
 		Neurone.fixeTraceApprentissage(afficherApprentissage);
 
 		System.out.printf(
-			"Apprentissage : activation=%s, eta=%.5f, epochsMax=%d, mseLimite=%.5f%n",
+			"Apprentissage : activation=%s, representation=%s, eta=%.5f, epochsMax=%d, mseLimite=%.5f%n",
 			activation,
+			nomRepresentation(train.niveauxDeGris),
 			eta,
 			epochsMax,
 			mseLimite);
 		neurone.apprentissage(train.entrees, train.labels, mseLimite);
 
-		return new ModeleIA(neurone, activation, eta, epochsMax, mseLimite, Double.NaN, Double.NaN, nbPixels);
+		return new ModeleIA(
+			neurone,
+			activation,
+			eta,
+			epochsMax,
+			mseLimite,
+			Double.NaN,
+			Double.NaN,
+			nbPixels,
+			train.niveauxDeGris);
 	}
 
 	private static iNeurone creerNeurone(String activation, int nbEntrees) {
@@ -772,7 +856,7 @@ public class testNeurone {
 			return;
 		}
 
-		JeuImages test = obtenirJeuChatChienTest();
+		JeuImages test = obtenirJeuChatChienTest(modeleChatChien.niveauxDeGris);
 
 		if (test.entrees.length == 0) {
 			System.err.println("Erreur : donnees de test chat/chien introuvables.");
@@ -797,8 +881,8 @@ public class testNeurone {
 			return;
 		}
 
-		JeuImages train = obtenirJeuChatChienTrain();
-		JeuImages test = obtenirJeuChatChienTest();
+		JeuImages train = obtenirJeuChatChienTrain(modeleChatChien.niveauxDeGris);
+		JeuImages test = obtenirJeuChatChienTest(modeleChatChien.niveauxDeGris);
 		double scoreTrain = evaluerScore(modeleChatChien.neurone, train.entrees, train.labels);
 		double scoreTest = evaluerScore(modeleChatChien.neurone, test.entrees, test.labels);
 
@@ -819,11 +903,12 @@ public class testNeurone {
 			return;
 		}
 
-		JeuImages test = obtenirJeuChatChienTest();
+		JeuImages test = obtenirJeuChatChienTest(modeleChatChien.niveauxDeGris);
 		float[] amplitudes = {0.0f, 0.05f, 0.10f, 0.20f, 0.30f};
 
 		System.out.println();
 		System.out.println("=== ROBUSTESSE CHAT VS CHIEN AU BRUIT BLANC ===");
+		System.out.println("Representation : " + nomRepresentation(modeleChatChien.niveauxDeGris));
 		System.out.println("Amplitude | RSB (dB) | Fiabilite");
 
 		for (float amplitude : amplitudes) {
@@ -853,6 +938,9 @@ public class testNeurone {
 
 	private static void afficherResumeModele(ModeleIA modele) {
 		System.out.printf("Activation : %s%n", modele.activation);
+		System.out.printf("Representation : %s | entrees neurone : %d%n",
+			nomRepresentation(modele.niveauxDeGris),
+			modele.nbPixels);
 		System.out.printf("eta : %.5f | epochsMax : %d | mseLimite : %.5f%n",
 			modele.eta,
 			modele.epochsMax,
@@ -866,40 +954,68 @@ public class testNeurone {
 		}
 	}
 
-	private static DataPipeline obtenirPipelineImages() {
-		if (pipelineImages != null) {
-			return pipelineImages;
+	private static DataPipeline obtenirPipelineImages(boolean niveauxDeGris) {
+		if (niveauxDeGris && pipelineImagesGris != null) {
+			return pipelineImagesGris;
+		}
+		if (!niveauxDeGris && pipelineImagesRGB != null) {
+			return pipelineImagesRGB;
 		}
 
 		System.out.println();
 		System.out.println("=== INITIALISATION DU PIPELINE ===");
+		System.out.println("Representation : " + nomRepresentation(niveauxDeGris));
 
 		// Dossier dataset : compatible lancement depuis racine projet ou depuis Support/
 		String repTrain = premierRepertoireExistant("dataset_groupe_7/train", "../dataset_groupe_7/train");
 		String repTest = premierRepertoireExistant("dataset_groupe_7/test", "../dataset_groupe_7/test");
 
-		pipelineImages = new DataPipeline();
-		pipelineImages.construire(repTrain, repTest, true);
+		DataPipeline pipeline = new DataPipeline();
+		pipeline.construire(repTrain, repTest, niveauxDeGris);
 
-		return pipelineImages;
+		if (niveauxDeGris) {
+			pipelineImagesGris = pipeline;
+		} else {
+			pipelineImagesRGB = pipeline;
+		}
+
+		return pipeline;
 	}
 
-	private static JeuImages obtenirJeuChatChienTrain() {
-		if (jeuChatChienTrain == null) {
+	private static JeuImages obtenirJeuChatChienTrain(boolean niveauxDeGris) {
+		if (niveauxDeGris) {
+			if (jeuChatChienTrainGris == null) {
+				String repTrain = premierRepertoireExistant("dataset_groupe_7/train", "../dataset_groupe_7/train");
+				jeuChatChienTrainGris = chargerJeuChatChien(repTrain, true, true);
+			}
+
+			return jeuChatChienTrainGris;
+		}
+
+		if (jeuChatChienTrainRGB == null) {
 			String repTrain = premierRepertoireExistant("dataset_groupe_7/train", "../dataset_groupe_7/train");
-			jeuChatChienTrain = chargerJeuChatChien(repTrain, true, true);
+			jeuChatChienTrainRGB = chargerJeuChatChien(repTrain, false, true);
 		}
 
-		return jeuChatChienTrain;
+		return jeuChatChienTrainRGB;
 	}
 
-	private static JeuImages obtenirJeuChatChienTest() {
-		if (jeuChatChienTest == null) {
-			String repTest = premierRepertoireExistant("dataset_groupe_7/test", "../dataset_groupe_7/test");
-			jeuChatChienTest = chargerJeuChatChien(repTest, true, false);
+	private static JeuImages obtenirJeuChatChienTest(boolean niveauxDeGris) {
+		if (niveauxDeGris) {
+			if (jeuChatChienTestGris == null) {
+				String repTest = premierRepertoireExistant("dataset_groupe_7/test", "../dataset_groupe_7/test");
+				jeuChatChienTestGris = chargerJeuChatChien(repTest, true, false);
+			}
+
+			return jeuChatChienTestGris;
 		}
 
-		return jeuChatChienTest;
+		if (jeuChatChienTestRGB == null) {
+			String repTest = premierRepertoireExistant("dataset_groupe_7/test", "../dataset_groupe_7/test");
+			jeuChatChienTestRGB = chargerJeuChatChien(repTest, false, false);
+		}
+
+		return jeuChatChienTestRGB;
 	}
 
 	private static JeuImages chargerJeuChatChien(String repertoire, boolean niveauxDeGris, boolean melanger) {
@@ -912,7 +1028,7 @@ public class testNeurone {
 
 		if (chemins == null) {
 			System.err.println("Erreur : Impossible de lire le repertoire " + repertoire);
-			return new JeuImages(new float[0][], new float[0], new String[0], 0, 0);
+			return new JeuImages(new float[0][], new float[0], new String[0], 0, 0, niveauxDeGris);
 		}
 
 		for (String chemin : chemins) {
@@ -942,13 +1058,17 @@ public class testNeurone {
 			}
 		}
 
-		JeuImages jeu = convertirEnTableaux(entrees, labels, cheminsConserves, nbChats, nbChiens);
+		JeuImages jeu = convertirEnTableaux(entrees, labels, cheminsConserves, nbChats, nbChiens, niveauxDeGris);
 
 		if (melanger) {
 			melangerJeuImages(jeu);
 		}
 
-		System.out.printf("Chargement chat/chien : %d images dans '%s'%n", jeu.entrees.length, repertoire);
+		System.out.printf(
+			"Chargement chat/chien %s : %d images dans '%s'%n",
+			nomRepresentation(niveauxDeGris),
+			jeu.entrees.length,
+			repertoire);
 		return jeu;
 	}
 
@@ -957,7 +1077,8 @@ public class testNeurone {
 		List<Float> labels,
 		List<String> chemins,
 		int nbChats,
-		int nbChiens) {
+		int nbChiens,
+		boolean niveauxDeGris) {
 
 		float[][] entreesTableau = new float[entrees.size()][];
 		float[] labelsTableau = new float[labels.size()];
@@ -969,7 +1090,7 @@ public class testNeurone {
 			cheminsTableau[i] = chemins.get(i);
 		}
 
-		return new JeuImages(entreesTableau, labelsTableau, cheminsTableau, nbChats, nbChiens);
+		return new JeuImages(entreesTableau, labelsTableau, cheminsTableau, nbChats, nbChiens, niveauxDeGris);
 	}
 
 	private static JeuImages sousJeu(JeuImages source, int debut, int fin) {
@@ -993,7 +1114,7 @@ public class testNeurone {
 			}
 		}
 
-		return new JeuImages(entrees, labels, chemins, nbChats, nbChiens);
+		return new JeuImages(entrees, labels, chemins, nbChats, nbChiens, source.niveauxDeGris);
 	}
 
 	private static void melangerJeuImages(JeuImages jeu) {
@@ -1016,8 +1137,8 @@ public class testNeurone {
 		}
 	}
 
-	private static void testerImagesSansBruit() {
-		DataPipeline pipeline = obtenirPipelineImages();
+	private static void testerImagesSansBruit(boolean niveauxDeGris) {
+		DataPipeline pipeline = obtenirPipelineImages(niveauxDeGris);
 		iNeurone neurone = entrainerNeuroneImages(pipeline);
 
 		if (neurone == null) {
@@ -1026,14 +1147,15 @@ public class testNeurone {
 
 		System.out.println();
 		System.out.println("=== EVALUATION SUR LE FLUX DE TEST ===");
+		System.out.println("Representation : " + nomRepresentation(niveauxDeGris));
 
 		double precision = evaluerScore(neurone, pipeline.getEntreesTest(), pipeline.getLabelsTest());
 		System.out.printf("Precision finale sur le flux de Test : %.2f%%%n", precision);
 		System.out.println("Interpretation : classification binaire chat vs non-chat.");
 	}
 
-	private static void testerRobustesseAvecBruit() {
-		DataPipeline pipeline = obtenirPipelineImages();
+	private static void testerRobustesseAvecBruit(boolean niveauxDeGris) {
+		DataPipeline pipeline = obtenirPipelineImages(niveauxDeGris);
 		iNeurone neurone = entrainerNeuroneImages(pipeline);
 
 		if (neurone == null) {
@@ -1044,6 +1166,7 @@ public class testNeurone {
 
 		System.out.println();
 		System.out.println("=== ROBUSTESSE AU BRUIT BLANC ===");
+		System.out.println("Representation : " + nomRepresentation(niveauxDeGris));
 		System.out.println("Amplitude | RSB (dB) | Precision");
 
 		for (float amplitude : amplitudes) {
@@ -1070,7 +1193,7 @@ public class testNeurone {
 		}
 
 		int nbPixels = entreesTrain[0].length;
-		System.out.printf("Nombre d'entrees du neurone (pixels) : %d synapses.%n", nbPixels);
+		System.out.printf("Nombre d'entrees du neurone : %d synapses.%n", nbPixels);
 
 		Neurone.fixeCoefApprentissage(ETA_IMAGES_DEFAUT);
 		Neurone.fixeNbEpochsMax(EPOCHS_IMAGES_DEFAUT);
@@ -1248,6 +1371,9 @@ public class testNeurone {
 			meta.setProperty("precisionValidation", String.valueOf(modeleChatChien.precisionValidation));
 			meta.setProperty("precisionTest", String.valueOf(modeleChatChien.precisionTest));
 			meta.setProperty("nbPixels", String.valueOf(modeleChatChien.nbPixels));
+			meta.setProperty("nbEntrees", String.valueOf(modeleChatChien.nbPixels));
+			meta.setProperty("niveauxDeGris", String.valueOf(modeleChatChien.niveauxDeGris));
+			meta.setProperty("representation", nomRepresentation(modeleChatChien.niveauxDeGris));
 
 			try (FileWriter writer = new FileWriter(FICHIER_META_MODELE)) {
 				meta.store(writer, "Modele chat vs chien sauvegarde");
@@ -1281,7 +1407,8 @@ public class testNeurone {
 			float mseLimite = Float.parseFloat(proprietes.getProperty("mseLimite", String.valueOf(MSE_LIMITE_IMAGES_DEFAUT)));
 			double precisionValidation = Double.parseDouble(proprietes.getProperty("precisionValidation", "NaN"));
 			double precisionTest = Double.parseDouble(proprietes.getProperty("precisionTest", "NaN"));
-			int nbPixels = Integer.parseInt(proprietes.getProperty("nbPixels", "4096"));
+			int nbPixels = Integer.parseInt(proprietes.getProperty("nbEntrees", proprietes.getProperty("nbPixels", "4096")));
+			boolean niveauxDeGris = Boolean.parseBoolean(proprietes.getProperty("niveauxDeGris", "true"));
 
 			iNeurone neurone = creerNeurone(activation, nbPixels);
 			neurone.chargement(FICHIER_POIDS_MODELE);
@@ -1293,7 +1420,8 @@ public class testNeurone {
 				mseLimite,
 				precisionValidation,
 				precisionTest,
-				nbPixels);
+				nbPixels,
+				niveauxDeGris);
 
 			if (afficherMessage) {
 				System.out.println("Modele sauvegarde charge en memoire.");
